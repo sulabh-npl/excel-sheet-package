@@ -1,6 +1,6 @@
 <?php
 
-namespace ExcelFilePackage;
+namespace Sulabh\ExcelFilePackage;
 
 use ZipArchive;
 

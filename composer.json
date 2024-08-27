@@ -1,5 +1,5 @@
 {
-    "name": "ExcelFilePackage",
+    "name": "Sulabh/ExcelFilePackage",
     "description": "A package to create Excel files from data",
     "type": "library",
     "license": "MIT",
@@ -13,7 +13,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "ExcelFilePackage\\": "src/"
+            "Sulabh\\ExcelSheetPackage\\": "src/"
         }
     },
     "require": {
