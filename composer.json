@@ -1,5 +1,5 @@
 {
-    "name": "Sulabh/ExcelFilePackage",
+    "name": "sulabh/excel-file-package",
     "description": "A package to create Excel files from data",
     "type": "library",
     "license": "MIT",
