@@ -2,6 +2,7 @@
     "name": "sulabh/excel-file-package",
     "description": "A package to create Excel files from data",
     "type": "library",
+    "version": "0.0.1",
     "license": "MIT",
     "authors": [
         {
@@ -13,7 +14,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Sulabh\\ExcelSheetPackage\\": "src/"
+            "Sulabh\\ExcelFilePackage\\": "src/"
         }
     },
     "require": {
