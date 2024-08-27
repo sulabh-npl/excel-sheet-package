@@ -1,0 +1,22 @@
+{
+    "name": "sulabhnepal/excel-sheet-package",
+    "description": "A package to create Excel files from data",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sulabh Nepal",
+            "email": "me@sulabh.info.np",
+            "website": "https://sulabh.info.np",
+            "github": "https://github.com/sulabh-npl"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "SulabhNepal\\ExcelSheetPackage\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=7.4"
+    }
+}
