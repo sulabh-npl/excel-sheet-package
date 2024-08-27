@@ -1,5 +1,5 @@
 {
-    "name": "excel-file-package",
+    "name": "ExcelFilePackage",
     "description": "A package to create Excel files from data",
     "type": "library",
     "license": "MIT",
