@@ -1,4 +1,3 @@
-how about this
 # Excel File Package
 
 Excel file package is a composer package used to export data from database to excel sheet with proper heading and formatting of data. 
