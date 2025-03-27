@@ -2,22 +2,20 @@
     "name": "sulabh/excel-file-package",
     "description": "A package to create Excel files from data",
     "type": "library",
-    "version": "0.0.1",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "Sulabh Nepal",
-            "email": "me@sulabh.info.np",
-            "website": "https://sulabh.info.np",
-            "github": "https://github.com/sulabh-npl"
-        }
-    ],
+    "require": {
+        "php": ">=7.4"
+    },
     "autoload": {
         "psr-4": {
             "Sulabh\\ExcelFilePackage\\": "src/"
         }
     },
-    "require": {
-        "php": ">=7.4"
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        }
     }
 }
