@@ -337,12 +337,22 @@ class ExcelFile
                 $sharedStrings .= '<si><t>'.htmlspecialchars($header, ENT_XML1).'</t></si>';
             }
 
-            file_put_contents($filename.'/xl/sharedStrings.xml', $sharedStrings);
+            touch($filename.'/xl/sharedStrings.xml');
+
+            $shared_string_file = fopen($filename.'/xl/sharedStrings.xml', 'a');
+
+            fwrite($shared_string_file, $sharedStrings);
+            
             $shared_string_count = count($headers);
 
             // Process data in chunks
-            $data->chunk($chunk_size, function($chunks) use ($filename, &$chunk_count, $headers, $row_formatter, &$shared_string_count) {
+            $data->chunk($chunk_size, function($chunks) use ($filename, &$chunk_count, &$shared_string_file, $headers, $row_formatter, &$shared_string_count) {
                 $chunk_count++;
+
+                touch($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml');
+
+                $xml = fopen($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', 'a');
+
                 $header_length = count($headers);
                 $max_cell = chr(64 + $header_length) . strval(count($chunks) + 1);
 
@@ -365,35 +375,48 @@ class ExcelFile
                 }
                 $worksheet_xml .= '</row>';
 
+                fwrite($xml, $worksheet_xml);
+
                 // Add data rows
                 foreach($chunks as $index => $row) {
                     $row_data = $row_formatter($row);
+                    
+                    $sharedStrings = '';
+
+                    $worksheet_xml = '';
+
                     $worksheet_xml .= '<row r="'.($index + 2).'" spans="1:'.$header_length.'">';
                     
                     foreach($row_data as $col => $value) {
+                        $col_index = is_numeric($col) ? $col : static::columnToIndex($col,$headers);  // If $col is a name like 'A', 'B', etc.
                         if($value === 'SERIAL_NO') {
                             $value = $index + 1;
                         }
-                        $worksheet_xml .= '<c r="'.chr(65 + $col).($index + 2).'" t="s"><v>'.($shared_string_count++).'</v></c>';
+
+                        $sharedStrings .= '<si><t>'.$value.'</t></si>';
+                        $worksheet_xml .= '<c r="'.chr(65 + $col_index).($index + 2).'" t="s"><v>'.($shared_string_count++).'</v></c>';
                     }
+                    fwrite($shared_string_file, $sharedStrings);
                     $worksheet_xml .= '</row>';
+
+                    fwrite($xml, $worksheet_xml);
                 }
 
-                $worksheet_xml .= '</sheetData>
+                $worksheet_xml = '</sheetData>
     <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
 </worksheet>';
 
-                file_put_contents($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', $worksheet_xml);
+                // file_put_contents($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', $worksheet_xml);
+                fwrite($xml, $worksheet_xml);
+                fclose($xml);
 
                 // Create empty worksheet rels
                 file_put_contents($filename.'/xl/worksheets/_rels/sheet'.$chunk_count.'.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
             });
 
-            // Update shared strings with actual data
-            $sharedStrings = file_get_contents($filename.'/xl/sharedStrings.xml');
-            $sharedStrings = str_replace('uniqueCount="'.count($headers).'"', 'uniqueCount="'.$shared_string_count.'"', $sharedStrings);
-            file_put_contents($filename.'/xl/sharedStrings.xml', $sharedStrings);
+            fwrite($shared_string_file, '</sst>');
+            fclose($shared_string_file);
 
             // Create ZIP archive
             $zip = new ZipArchive();
@@ -441,23 +464,53 @@ class ExcelFile
         }
     }
 
+    private static function columnToIndex($column_name, $headers) {
+
+        $index = array_search(strtolower($column_name), array_map('strtolower', $headers));
+
+        if ($index !== false) {
+            return $index;
+        } else {
+            throw new InvalidArgumentException("Column $column_name not found in headers");
+        }
+    }
+
     public static function deleteDir(string $dirPath): void
-    {
-        if (!is_dir($dirPath)) {
-            throw new InvalidArgumentException("$dirPath must be a directory");
-        }
-
-        $dirPath = rtrim($dirPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        $files = glob($dirPath . '*', GLOB_MARK);
-
-        foreach ($files as $file) {
-            if (is_dir($file)) {
-                static::deleteDir($file);
-            } else {
-                unlink($file);
+    {        
+        try{
+            if (! is_dir($dirPath)) {    
+                throw new InvalidArgumentException("$dirPath must be a directory");
             }
-        }
 
-        rmdir($dirPath);
+            if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
+                $dirPath .= '/';
+            }
+
+            $files = glob($dirPath . '*', GLOB_MARK);
+
+            foreach ($files as $file) {
+
+                if (is_dir($file)) {
+
+                    static::deleteDir($file);
+
+                } else {
+
+                    unlink($file);
+                }
+            }
+
+            if(strpos($dirPath, '_rels') !== false)
+
+                if(file_exists($dirPath.'.rels'))
+
+                    unlink($dirPath.'.rels');
+
+            rmdir($dirPath);
+
+        } catch (Exception $e) {
+
+            echo("Error in deleting directory: ".$e->getMessage());
+        }
     }
 }
