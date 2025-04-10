@@ -344,7 +344,7 @@ class ExcelFile
             $data->chunk($chunk_size, function($chunks) use ($filename, &$chunk_count, $headers, $row_formatter, &$shared_string_count) {
                 $chunk_count++;
                 $header_length = count($headers);
-                $max_cell = chr(64 + $header_length) . (count($chunks) + 1);
+                $max_cell = chr(64 + $header_length) . strval(count($chunks) + 1);
 
                 // Create worksheet XML
                 $worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
