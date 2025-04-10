@@ -331,8 +331,7 @@ class ExcelFile
             file_put_contents($filename.'/xl/styles.xml', $xl_styles_xml);
 
             // Generate shared strings
-            $sharedStrings = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.(($total_data_count * count($headers) + count($headers)).'" uniqueCount="'.(count($headers)).'">';
+            $sharedStrings = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.($total_data_count * count($headers) + count($headers)).'" uniqueCount="'.(count($headers)).'">';
 
             foreach($headers as $header) {
                 $sharedStrings .= '<si><t>'.htmlspecialchars($header, ENT_XML1).'</t></si>';
