@@ -38,7 +38,7 @@ class ExcelFile
 
             str_replace('.xlsx', '', $filename);
 
-            $filename = $publicPath.$filename;
+            $filename = $publicPath.'/'.$filename;
 
             mkdir($filename);
 
