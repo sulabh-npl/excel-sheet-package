@@ -28,13 +28,17 @@ class ExcelFile
 
             $total_data_count = $total_data_count ?? $data->count();
 
-            if(!file_exists('public/exports')) {
-                mkdir('public/exports');
+            $basePath = dirname(__DIR__, 4); // Adjust to get the base directory of the project
+
+            $publicPath = $basePath . '/public';
+            
+            if(!file_exists($publicPath.'/exports')) {
+                mkdir($publicPath.'/exports');
             }
 
             str_replace('.xlsx', '', $filename);
 
-            $filename = 'public/'.$filename;
+            $filename = $publicPath.$filename;
 
             mkdir($filename);
 
