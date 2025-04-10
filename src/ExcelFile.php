@@ -24,7 +24,7 @@ class ExcelFile
 
         try{
 
-            echo("Creating XLSX file.");
+            // echo("Creating XLSX file.");
 
             $total_data_count = $total_data_count ?? $data->count();
 
@@ -38,7 +38,7 @@ class ExcelFile
 
             str_replace('.xlsx', '', $filename);
 
-            $filename = $publicPath.'/'.$filename;
+            $filename = $publicPath.'/exports/'.$filename;
 
             mkdir($filename);
 
@@ -171,10 +171,6 @@ class ExcelFile
 
                 foreach($chunks as $i => $row) {
 
-                    if($i % 10000 == 0) {
-                        echo("Export data Count : " . $i." of ".$chunk_count);
-                    }
-
                     $row_content = $row_formatter($row);
 
                     $sharedStrings = '';
@@ -251,10 +247,10 @@ class ExcelFile
 
                 static::deleteDir($filename);
 
-                echo("XLSX file created successfully.");
+                // echo("XLSX file created successfully.");
             } else {
 
-                echo("Failed to create XLSX file.");
+                // echo("Failed to create XLSX file.");
             }
         } catch (Exception $e) {
 
