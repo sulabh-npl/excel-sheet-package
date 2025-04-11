@@ -354,7 +354,7 @@ class ExcelFile
                 $xml = fopen($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', 'a');
 
                 $header_length = count($headers);
-                $max_cell = chr(64 + $header_length) . strval(count($chunks) + 1);
+                $max_cell = static::numberToExcelColumn($header_length) . strval(count($chunks) + 1);
 
                 // Create worksheet XML
                 $worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -371,7 +371,7 @@ class ExcelFile
 
                 // Add headers
                 for($i = 0; $i < $header_length; $i++) {
-                    $worksheet_xml .= '<c r="'.chr(65 + $i).'1" t="s"><v>'.$i.'</v></c>';
+                    $worksheet_xml .= '<c r="'.static::numberToExcelColumn(1 + $i).'1" t="s"><v>'.$i.'</v></c>';
                 }
                 $worksheet_xml .= '</row>';
 
@@ -383,9 +383,10 @@ class ExcelFile
                     
                     $sharedStrings = '';
 
-                    $worksheet_xml = '';
+                    $worksheet_xml = [];
+                    $i = 0;
 
-                    $worksheet_xml .= '<row r="'.($index + 2).'" spans="1:'.$header_length.'">';
+                    $worksheet_xml[$i++] = sprintf('<row r="%d" spans="1:%d">', $index + 2, $header_length);
                     
                     foreach($row_data as $col => $value) {
                         $col_index = is_numeric($col) ? $col : static::columnToIndex($col,$headers);  // If $col is a name like 'A', 'B', etc.
@@ -393,13 +394,13 @@ class ExcelFile
                             $value = $index + 1;
                         }
 
-                        $sharedStrings .= '<si><t>'.$value.'</t></si>';
-                        $worksheet_xml .= '<c r="'.chr(65 + $col_index).($index + 2).'" t="s"><v>'.($shared_string_count++).'</v></c>';
+                        $sharedStrings .= "<si><t>$value</t></si>";
+                        $worksheet_xml[$i++] = sprintf('<c r="%s%d" t="s"><v>%d</v></c>', static::numberToExcelColumn(1 + $col_index), $index + 2, $shared_string_count++);
                     }
                     fwrite($shared_string_file, $sharedStrings);
-                    $worksheet_xml .= '</row>';
+                    $worksheet_xml[$i++] = '</row>';
 
-                    fwrite($xml, $worksheet_xml);
+                    fwrite($xml, implode('', $worksheet_xml));
                 }
 
                 $worksheet_xml = '</sheetData>
@@ -473,6 +474,17 @@ class ExcelFile
         } else {
             throw new InvalidArgumentException("Column $column_name not found in headers");
         }
+    }
+
+    private static function numberToExcelColumn(int $number): string
+    {
+        $column = '';
+        while ($number > 0) {
+            $mod = ($number - 1) % 26;
+            $column = chr(65 + $mod) . $column;
+            $number = (int)(($number - $mod) / 26);
+        }
+        return $column;
     }
 
     public static function deleteDir(string $dirPath): void
