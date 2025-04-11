@@ -8,6 +8,9 @@ use InvalidArgumentException;
 
 class ExcelFile
 {
+    private static $lowercase_headers = null;
+    private static $excel_column_index = [];
+    private static $column_index = [];
     public static function createExcelFile($data, $chunk_size, $headers, $filename, $row_formatter, $total_data_count = 0)
     {
         try {
@@ -330,11 +333,14 @@ class ExcelFile
 
             file_put_contents($filename.'/xl/styles.xml', $xl_styles_xml);
 
-            // Generate shared strings
-            $sharedStrings = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.($total_data_count * count($headers) + count($headers)).'" uniqueCount="'.(count($headers)).'">';
-
-            foreach($headers as $header) {
-                $sharedStrings .= '<si><t>'.htmlspecialchars($header, ENT_XML1).'</t></si>';
+            $sharedStrings = sprintf(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="%d" uniqueCount="%d">',
+                $total_data_count * count($headers) + count($headers),
+                count($headers)
+            );
+            
+            foreach ($headers as $header) {
+                $sharedStrings .= sprintf('<si><t>%s</t></si>', htmlspecialchars($header, ENT_XML1));
             }
 
             touch($filename.'/xl/sharedStrings.xml');
@@ -345,35 +351,46 @@ class ExcelFile
             
             $shared_string_count = count($headers);
 
+            foreach ($headers as $i=>$header) {
+                static::$column_index[$header] = $i;
+            }
+
             // Process data in chunks
             $data->chunk($chunk_size, function($chunks) use ($filename, &$chunk_count, &$shared_string_file, $headers, $row_formatter, &$shared_string_count) {
                 $chunk_count++;
 
-                touch($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml');
+                $worksheet_file = $filename.'/xl/worksheets/sheet'.$chunk_count.'.xml';
 
-                $xml = fopen($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', 'a');
+                touch($worksheet_file);
+
+                $xml = fopen($worksheet_file, 'a');
 
                 $header_length = count($headers);
                 $max_cell = static::numberToExcelColumn($header_length) . strval(count($chunks) + 1);
 
                 // Create worksheet XML
-                $worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-    <dimension ref="A1:'.$max_cell.'"/>
-    <sheetViews>
-        <sheetView workbookViewId="0">
-            <selection activeCell="A1" sqref="A1"/>
-        </sheetView>
-    </sheetViews>
-    <sheetFormatPr defaultRowHeight="15"/>
-    <sheetData>
-        <row r="1" spans="1:'.$header_length.'">';
-
+                $worksheet_xml = sprintf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                    <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                        <dimension ref="A1:%s"/>
+                        <sheetViews>
+                            <sheetView workbookViewId="0">
+                                <selection activeCell="A1" sqref="A1"/>
+                            </sheetView>
+                        </sheetViews>
+                        <sheetFormatPr defaultRowHeight="15"/>
+                        <sheetData>
+                            <row r="1" spans="1:%d">',
+                    $max_cell,
+                    $header_length
+                );
                 // Add headers
+                $worksheet_headers = [];
                 for($i = 0; $i < $header_length; $i++) {
-                    $worksheet_xml .= '<c r="'.static::numberToExcelColumn(1 + $i).'1" t="s"><v>'.$i.'</v></c>';
+                    $worksheet_headers[$i] = sprintf('<c r="%s1" t="s"><v>%d</v></c>', static::numberToExcelColumn(1 + $i), $i);
                 }
-                $worksheet_xml .= '</row>';
+                
+                $worksheet_xml = $worksheet_xml . implode('', $worksheet_headers). '</row>';
 
                 fwrite($xml, $worksheet_xml);
 
@@ -381,23 +398,24 @@ class ExcelFile
                 foreach($chunks as $index => $row) {
                     $row_data = $row_formatter($row);
                     
-                    $sharedStrings = '';
+                    $sharedStrings = [];
 
                     $worksheet_xml = [];
                     $i = 0;
+                    $j = 0;
 
                     $worksheet_xml[$i++] = sprintf('<row r="%d" spans="1:%d">', $index + 2, $header_length);
                     
                     foreach($row_data as $col => $value) {
-                        $col_index = is_numeric($col) ? $col : static::columnToIndex($col,$headers);  // If $col is a name like 'A', 'B', etc.
+                        $col_index = is_numeric($col) ? $col : static::$column_index[$col];
                         if($value === 'SERIAL_NO') {
                             $value = $index + 1;
                         }
 
-                        $sharedStrings .= "<si><t>$value</t></si>";
+                        $sharedStrings[$j++] = "<si><t>$value</t></si>";
                         $worksheet_xml[$i++] = sprintf('<c r="%s%d" t="s"><v>%d</v></c>', static::numberToExcelColumn(1 + $col_index), $index + 2, $shared_string_count++);
                     }
-                    fwrite($shared_string_file, $sharedStrings);
+                    fwrite($shared_string_file, implode('', $sharedStrings));
                     $worksheet_xml[$i++] = '</row>';
 
                     fwrite($xml, implode('', $worksheet_xml));
@@ -407,7 +425,6 @@ class ExcelFile
     <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
 </worksheet>';
 
-                // file_put_contents($filename.'/xl/worksheets/sheet'.$chunk_count.'.xml', $worksheet_xml);
                 fwrite($xml, $worksheet_xml);
                 fclose($xml);
 
@@ -465,64 +482,73 @@ class ExcelFile
         }
     }
 
-    private static function columnToIndex($column_name, $headers) {
-
-        $index = array_search(strtolower($column_name), array_map('strtolower', $headers));
-
-        if ($index !== false) {
-            return $index;
-        } else {
+    private static function columnToIndex(string $column_name, array $headers): int
+    {
+        if (self::$lowercase_headers === null) {
+            self::$lowercase_headers = array_map('strtolower', $headers);
+        }
+    
+        $column_name = strtolower($column_name);
+        $index = array_search($column_name, self::$lowercase_headers);
+    
+        if ($index === false) {
             throw new InvalidArgumentException("Column $column_name not found in headers");
         }
+    
+        return $index;
     }
+    
 
     private static function numberToExcelColumn(int $number): string
     {
         $column = '';
         while ($number > 0) {
             $mod = ($number - 1) % 26;
-            $column = chr(65 + $mod) . $column;
-            $number = (int)(($number - $mod) / 26);
+            if(!isset(self::$excel_column_index[$mod])) {
+                self::$excel_column_index[$mod] = chr(65 + $mod);
+            }
+            $column = self::$excel_column_index[$mod] . $column;
+            $number = intdiv($number, 26);
         }
         return $column;
     }
 
     public static function deleteDir(string $dirPath): void
-    {        
-        try{
-            if (! is_dir($dirPath)) {    
+    {
+        try {
+            // Check if directory exists
+            if (!is_dir($dirPath)) {
                 throw new InvalidArgumentException("$dirPath must be a directory");
             }
-
-            if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
-                $dirPath .= '/';
-            }
-
-            $files = glob($dirPath . '*', GLOB_MARK);
-
-            foreach ($files as $file) {
-
-                if (is_dir($file)) {
-
-                    static::deleteDir($file);
-
+    
+            // Normalize the directory path (remove trailing slashes if any)
+            $dirPath = rtrim($dirPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    
+            // Use RecursiveIteratorIterator for efficient directory traversal
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dirPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+    
+            // Delete all files and directories
+            foreach ($iterator as $fileinfo) {
+                if ($fileinfo->isDir()) {
+                    rmdir($fileinfo->getRealPath());
                 } else {
-
-                    unlink($file);
+                    unlink($fileinfo->getRealPath());
                 }
             }
-
-            if(strpos($dirPath, '_rels') !== false)
-
-                if(file_exists($dirPath.'.rels'))
-
-                    unlink($dirPath.'.rels');
-
+    
+            // If the directory contains _rels, remove the corresponding file
+            if (strpos($dirPath, '_rels') !== false && file_exists($dirPath . '.rels')) {
+                unlink($dirPath . '.rels');
+            }
+    
+            // Finally, remove the main directory
             rmdir($dirPath);
-
         } catch (Exception $e) {
-
-            echo("Error in deleting directory: ".$e->getMessage());
+            // Log the error instead of printing
+            error_log("Error in deleting directory: " . $e->getMessage());
         }
-    }
+    }    
 }
